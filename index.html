@@ -1,0 +1,597 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>AI Form Builder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: slim admin shell, numbered stepper, one working surface per step. Drupal-blue accent on blue-tinted neutrals; mono type for keys, YAML and payloads. */
+:root{
+  --bg:#f2f5f9;--surface:#ffffff;--surface2:#f6f8fb;--line:#d8dfe9;--fg:#18222f;--muted:#586577;
+  --accent:#0a66b2;--accentfg:#ffffff;--accentsoft:#e3f0fb;
+  --ok:#17703f;--oksoft:#e2f4ea;--warn:#8f5200;--warnsoft:#fbefd9;--bad:#b3261e;--badsoft:#fbe6e4;
+  --code:#0f1b29;--codefg:#d8e6f5;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e141b;--surface:#161e28;--surface2:#1b2531;--line:#283342;--fg:#e5ebf3;--muted:#97a3b3;
+  --accent:#5eaef2;--accentfg:#07111b;--accentsoft:#14283a;
+  --ok:#5fd08e;--oksoft:#12301f;--warn:#f0b35c;--warnsoft:#33260f;--bad:#ff8b80;--badsoft:#3a1816;
+  --code:#0b1119;--codefg:#d3e2f3;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e141b;--surface:#161e28;--surface2:#1b2531;--line:#283342;--fg:#e5ebf3;--muted:#97a3b3;
+  --accent:#5eaef2;--accentfg:#07111b;--accentsoft:#14283a;
+  --ok:#5fd08e;--oksoft:#12301f;--warn:#f0b35c;--warnsoft:#33260f;--bad:#ff8b80;--badsoft:#3a1816;
+  --code:#0b1119;--codefg:#d3e2f3;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--sans);padding-block:20px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.shell{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand b{font-size:17px;font-weight:600;letter-spacing:-.01em}
+.brand span,.mono{font-family:var(--mono)}
+.brand span{font-size:12px;color:var(--muted)}
+.env{font:500 12px var(--mono);padding:3px 9px;border-radius:99px;background:var(--oksoft);color:var(--ok)}
+.steps{display:flex;gap:8px;flex-wrap:wrap}
+.step{flex:1 1 200px;display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--line);background:var(--surface);border-radius:8px;color:var(--muted);font:500 14px var(--sans);cursor:pointer;text-align:left}
+.step i{font:500 12px var(--mono);font-style:normal;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;flex:none}
+.step.on{color:var(--fg);border-color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
+.step.on i{background:var(--accent);border-color:var(--accent);color:var(--accentfg)}
+.step.done i{background:var(--oksoft);border-color:var(--ok);color:var(--ok)}
+.step:disabled{opacity:.5;cursor:not-allowed}
+h1{font-size:26px;line-height:1.2;letter-spacing:-.02em;margin:0 0 6px;font-weight:600;text-wrap:balance}
+h2{font-size:16px;margin:0;font-weight:600}
+.lead{color:var(--muted);margin:0 0 18px;max-width:68ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.card>header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.hint{color:var(--muted);font-size:13px;margin:0}
+label{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:500;color:var(--muted);min-width:0}
+input,select,textarea{font:15px var(--sans);color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;min-width:0}
+textarea{resize:vertical;line-height:1.5}
+input.mono,textarea.mono{font-family:var(--mono);font-size:13px}
+input[type=checkbox],input[type=radio]{width:auto;accent-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{font:500 14px var(--sans);padding:9px 16px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accentfg);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.sm{padding:5px 10px;font-size:13px}
+.btn.danger{color:var(--bad)}
+.btn:disabled{opacity:.6;cursor:wait}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.bar .grow{flex:1}
+.chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.ex{text-align:left;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);cursor:pointer;font:inherit;color:var(--fg);display:flex;flex-direction:column;gap:2px}
+.ex:hover{border-color:var(--accent)}
+.ex b{font-weight:600;font-size:14px}.ex span{color:var(--muted);font-size:13px}
+.frow{border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px;background:var(--surface2)}
+.frow-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.key{font:500 12px var(--mono);color:var(--accent);background:var(--accentsoft);padding:2px 8px;border-radius:4px}
+.grid3{display:grid;grid-template-columns:2fr 1.2fr auto;gap:10px;align-items:end}
+.grid3b{display:grid;grid-template-columns:1.3fr 1fr 1.3fr;gap:10px;align-items:end}
+.chk{flex-direction:row;align-items:center;gap:8px;padding-bottom:9px;color:var(--fg)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mail{border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px;background:var(--surface2)}
+.q{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.q:first-of-type{border-top:0}
+.q p{margin:0}
+.tag{font:500 11px var(--mono);padding:2px 7px;border-radius:99px;display:inline-block}
+.tag.open,.tag.warn{background:var(--warnsoft);color:var(--warn)}
+.tag.ok,.tag.pass{background:var(--oksoft);color:var(--ok)}
+.tag.fail{background:var(--badsoft);color:var(--bad)}
+.sticky{position:sticky;bottom:0;background:var(--bg);padding:12px 0 calc(8px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
+.build{display:flex;flex-direction:column;gap:10px;font:13px var(--mono)}
+.build div{display:flex;gap:10px;color:var(--muted)}
+.build div.d{color:var(--fg)}
+.build div.d::before{content:"✓";color:var(--ok)}
+.build div:not(.d)::before{content:"·"}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin:-4px 0 0}
+.tab{font:500 13px var(--sans);background:none;border:0;border-bottom:2px solid transparent;padding:8px 10px;color:var(--muted);cursor:pointer}
+.tab.on{color:var(--fg);border-color:var(--accent)}
+pre{margin:0;background:var(--code);color:var(--codefg);border-radius:8px;padding:14px;font:12.5px/1.55 var(--mono);overflow:auto;max-height:480px;white-space:pre}
+.fld{display:flex;flex-direction:column;gap:5px}
+.fld>.lab{font-size:14px;font-weight:500}
+.fld .req{color:var(--bad)}
+.fld .err{color:var(--bad);font-size:13px}
+.fld fieldset{border:0;padding:0;margin:0;display:flex;gap:14px;flex-wrap:wrap}
+.fld fieldset label{flex-direction:row;align-items:center;gap:6px;color:var(--fg);font-weight:400;font-size:15px}
+.fld.cb label{flex-direction:row;align-items:center;gap:8px;color:var(--fg);font-weight:400;font-size:14px}
+.fld.cond{padding-left:12px;border-left:2px solid var(--accent)}
+form.live{display:flex;flex-direction:column;gap:14px}
+.ok-box{background:var(--oksoft);color:var(--ok);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.note{background:var(--warnsoft);color:var(--warn);border-radius:6px;padding:8px 10px;font-size:13px}
+.testrow{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}
+.testrow:first-child{border-top:0}
+.testrow p{margin:0;font-size:14px}.testrow small{color:var(--muted);display:block}
+.mailview{border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.mailview pre{max-height:none;white-space:pre-wrap;font-family:var(--sans);font-size:14px;background:var(--surface2);color:var(--fg)}
+@media (max-width:760px){.grid3,.grid3b,.two,.q,.cols{grid-template-columns:1fr}.chk{padding-bottom:0}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="shell">
+  <div class="top">
+    <div class="brand"><b>Form Builder</b><span>Drupal 11 · Webform</span></div>
+    <span class="env">Sandbox</span>
+  </div>
+  <nav class="steps" id="steps" aria-label="Steps"></nav>
+  <main id="app"></main>
+</div>
+
+<script>
+(function(){
+const TYPES={textfield:'Short text',email:'Email',tel:'Phone',textarea:'Long text',select:'Dropdown',radios:'Single choice',checkbox:'Checkbox',date:'Date',number:'Number'};
+const HAS_OPTS=t=>t==='select'||t==='radios';
+const F=(id,label,type,o)=>Object.assign({id:id,label:label,type:type,required:false,options:[],showIf:null,sf:''},o||{});
+const SI=(field,value)=>({field:field,value:value});
+const slug=s=>(String(s).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'form').slice(0,40);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- Example briefs and the templates the agent would draw from them ---------- */
+const EX=[
+{title:'Conference registration',blurb:'Ticket types with conditional questions',
+brief:`Subject: Registration form for the Digital Public Services Summit
+
+Hi team,
+
+We need a registration form for the summit on 12 March. Collect first and last name, work email, phone and organisation. Ask for ticket type: Standard, Student or Speaker. Students need to give their university and student ID. Speakers need to enter their talk title. Ask about dietary needs (None, Vegetarian, Vegan, Halal, Other) and any accessibility requirements. Attendees must agree to the privacy notice.
+
+Send the events team an email for every registration and send the attendee a confirmation. Registrations should go into Salesforce as Leads on the "DPS Summit 2027" campaign.
+
+Thanks,
+Meera`,
+tpl:()=>({title:'Digital Public Services Summit registration',id:'dps_summit_registration',description:'Registration for the summit on 12 March.',
+fields:[
+F('first_name','First name','textfield',{required:true,sf:'FirstName'}),
+F('last_name','Last name','textfield',{required:true,sf:'LastName'}),
+F('email','Work email','email',{required:true,sf:'Email'}),
+F('phone','Phone','tel',{sf:'Phone'}),
+F('organisation','Organisation','textfield',{required:true,sf:'Company'}),
+F('ticket_type','Ticket type','radios',{required:true,options:['Standard','Student','Speaker'],sf:'Ticket_Type__c'}),
+F('university','University','textfield',{required:true,showIf:SI('ticket_type','Student'),sf:'University__c'}),
+F('student_id','Student ID','textfield',{required:true,showIf:SI('ticket_type','Student'),sf:'Student_ID__c'}),
+F('talk_title','Talk title','textfield',{required:true,showIf:SI('ticket_type','Speaker'),sf:'Talk_Title__c'}),
+F('dietary','Dietary needs','select',{options:['None','Vegetarian','Vegan','Halal','Other'],sf:'Dietary_Needs__c'}),
+F('accessibility','Accessibility requirements','textarea',{sf:'Accessibility_Needs__c'}),
+F('consent','I agree to the privacy notice','checkbox',{required:true,sf:'Privacy_Consent__c'})],
+confirmation:'Thanks {first_name}, you are registered. A confirmation is on its way to {email}.',
+emails:[
+{id:'email_events',name:'Notify events team',to:'events@example.org',subject:'New registration: {first_name} {last_name} ({ticket_type})',body:'{first_name} {last_name} from {organisation} registered as {ticket_type}.\nEmail: {email}\nDietary: {dietary}\nAccessibility: {accessibility}'},
+{id:'email_attendee',name:'Confirm to attendee',to:'{email}',subject:'You are registered for the summit',body:'Hi {first_name},\n\nThanks for registering for the Digital Public Services Summit on 12 March. Your ticket type is {ticket_type}.\n\nSee you there,\nThe events team'}],
+sfObject:'Lead',sfStatic:[{k:'LeadSource',v:'Website form'},{k:'Campaign_Name__c',v:'DPS Summit 2027'}],
+questions:[
+{q:'Is there a cap on attendees? Registration closes when it is reached.',a:''},
+{q:'Should students upload proof of enrolment, or is the student ID enough?',a:''},
+{q:'Salesforce campaign membership is not a Lead field. Should a flow add the Lead to "DPS Summit 2027"?',a:''}]})},
+
+{title:'Partner enquiry',blurb:'Replaces a shared inbox',
+brief:`From: Rohan, Partnerships
+Subject: Partner enquiry form
+
+We get partner requests by email and it is a mess. Make a form asking for contact name, work email, company and website. Type of partnership: Reseller, Technology integration or Media. Resellers should tell us their expected annual deal volume. Technology partners should link to their API docs. Everyone adds a short message. Notify partnerships@example.org and create a Lead in Salesforce with source "Partner form".`,
+tpl:()=>({title:'Partner enquiry',id:'partner_enquiry',description:'Start a conversation with the partnerships team.',
+fields:[
+F('first_name','First name','textfield',{required:true,sf:'FirstName'}),
+F('last_name','Last name','textfield',{required:true,sf:'LastName'}),
+F('email','Work email','email',{required:true,sf:'Email'}),
+F('company','Company','textfield',{required:true,sf:'Company'}),
+F('website','Website','textfield',{sf:'Website'}),
+F('partnership_type','Type of partnership','radios',{required:true,options:['Reseller','Technology integration','Media'],sf:'Partnership_Type__c'}),
+F('deal_volume','Expected annual deal volume','number',{required:true,showIf:SI('partnership_type','Reseller'),sf:'Expected_Deals__c'}),
+F('api_docs','Link to your API docs','textfield',{required:true,showIf:SI('partnership_type','Technology integration'),sf:'API_Docs_URL__c'}),
+F('message','Message','textarea',{required:true,sf:'Description'})],
+confirmation:'Thanks {first_name}. The partnerships team will reply to {email} within two working days.',
+emails:[
+{id:'email_partnerships',name:'Notify partnerships',to:'partnerships@example.org',subject:'Partner enquiry from {company} ({partnership_type})',body:'{first_name} {last_name} ({email}) from {company}.\nWebsite: {website}\n\n{message}'},
+{id:'email_sender',name:'Acknowledge sender',to:'{email}',subject:'We received your partner enquiry',body:'Hi {first_name},\n\nThanks for getting in touch. We will reply within two working days.\n\nPartnerships team'}],
+sfObject:'Lead',sfStatic:[{k:'LeadSource',v:'Partner form'}],
+questions:[
+{q:'Is "two working days" the right promise for the reply?',a:''},
+{q:'Should Media enquiries go to a different inbox?',a:''}]})},
+
+{title:'Volunteer sign-up',blurb:'Chained conditions and a minor check',
+brief:`Subject: Volunteer sign-up
+
+Need a sign-up form for our weekend food drive volunteers. Name, email, phone. Which day: Saturday, Sunday or Both. Role: Packing, Driving or Front desk. If Driving, ask if they have their own vehicle and, if so, how many boxes it can carry. Under 18? Tick box and then ask for a parent's email. Emergency contact name and phone. Send confirmation to the volunteer and notify volunteers@example.org. Store in Salesforce as Contact.`,
+tpl:()=>({title:'Food drive volunteer sign-up',id:'food_drive_volunteer',description:'Sign up for a weekend shift at the food drive.',
+fields:[
+F('first_name','First name','textfield',{required:true,sf:'FirstName'}),
+F('last_name','Last name','textfield',{required:true,sf:'LastName'}),
+F('email','Email','email',{required:true,sf:'Email'}),
+F('phone','Phone','tel',{required:true,sf:'Phone'}),
+F('day','Which day can you help?','select',{required:true,options:['Saturday','Sunday','Both'],sf:'Volunteer_Day__c'}),
+F('role','Role','radios',{required:true,options:['Packing','Driving','Front desk'],sf:'Volunteer_Role__c'}),
+F('own_vehicle','I have my own vehicle','checkbox',{showIf:SI('role','Driving'),sf:'Has_Vehicle__c'}),
+F('boxes','How many boxes can it carry?','number',{required:true,showIf:SI('own_vehicle','true'),sf:'Vehicle_Capacity__c'}),
+F('under_18','I am under 18','checkbox',{sf:'Is_Minor__c'}),
+F('parent_email','Parent or guardian email','email',{required:true,showIf:SI('under_18','true'),sf:'Guardian_Email__c'}),
+F('emergency_name','Emergency contact name','textfield',{required:true,sf:'Emergency_Contact_Name__c'}),
+F('emergency_phone','Emergency contact phone','tel',{required:true,sf:'Emergency_Contact_Phone__c'})],
+confirmation:'Thank you {first_name}! We have your sign-up and sent details to {email}.',
+emails:[
+{id:'email_volunteers',name:'Notify volunteer team',to:'volunteers@example.org',subject:'New volunteer: {first_name} {last_name} ({role}, {day})',body:'{first_name} {last_name}\n{email} / {phone}\nRole: {role}\nDay: {day}\nUnder 18: {under_18}'},
+{id:'email_volunteer',name:'Confirm to volunteer',to:'{email}',subject:'Your food drive sign-up',body:'Hi {first_name},\n\nThanks for signing up as {role} on {day}. We will send shift times a few days before.\n\nThe food drive team'}],
+sfObject:'Contact',sfStatic:[{k:'LeadSource',v:'Volunteer form'}],
+questions:[
+{q:'Do volunteers under 18 need a signed consent form before their shift?',a:''},
+{q:'Should drivers upload a driving licence?',a:''}]})}
+];
+
+function generic(text){
+  const t=text.toLowerCase();
+  const m=text.match(/^subject:\s*(.+)$/im);
+  const title=(m?m[1]:'New form').trim().slice(0,60);
+  const fields=[F('first_name','First name','textfield',{required:true,sf:'FirstName'}),F('last_name','Last name','textfield',{required:true,sf:'LastName'}),F('email','Email','email',{required:true,sf:'Email'})];
+  if(/phone|call|mobile/.test(t))fields.push(F('phone','Phone','tel',{sf:'Phone'}));
+  if(/company|organi[sz]ation|business/.test(t))fields.push(F('company','Company','textfield',{required:true,sf:'Company'}));
+  if(/\bdate\b|when|deadline/.test(t))fields.push(F('preferred_date','Preferred date','date',{sf:'Preferred_Date__c'}));
+  if(/budget|amount|quantity|how many/.test(t))fields.push(F('quantity','Amount','number',{sf:'Amount__c'}));
+  fields.push(F('message','Message','textarea',{required:true,sf:'Description'}));
+  fields.push(F('consent','I agree to be contacted about this request','checkbox',{required:true,sf:'Contact_Consent__c'}));
+  return {title:title,id:slug(title),description:'',fields:fields,
+    confirmation:'Thanks {first_name}, we have your request.',
+    emails:[{id:'email_team',name:'Notify team',to:'team@example.org',subject:'New submission: {first_name} {last_name}',body:'{first_name} {last_name} ({email})\n\n{message}'},
+            {id:'email_sender',name:'Confirm to sender',to:'{email}',subject:'We received your request',body:'Hi {first_name},\n\nThanks for getting in touch. We will reply soon.'}],
+    sfObject:'Lead',sfStatic:[{k:'LeadSource',v:'Website form'}],
+    questions:[{q:'This brief did not match a known pattern, so standard contact fields were used. What else should the form collect?',a:''},
+               {q:'Who should receive the staff notification? team@example.org is a placeholder.',a:''},
+               {q:'Should submissions create a Lead or a Contact in Salesforce?',a:''}]};
+}
+
+/* ---------- State ---------- */
+let T=null,built=false,step='brief',brief='',lastSub=null,tab='payload',vals={},errs={},tests=[],busy=false,building=null;
+const app=document.getElementById('app');
+
+function normalize(){
+  T.fields.forEach((f,i)=>{
+    if(HAS_OPTS(f.type)&&!f.options.length)f.options=['Option A','Option B'];
+    if(f.showIf){
+      const c=T.fields.slice(0,i).find(x=>x.id===f.showIf.field);
+      if(!c||!(c.type==='checkbox'||HAS_OPTS(c.type)))f.showIf=null;
+      else if(HAS_OPTS(c.type)&&c.options.indexOf(f.showIf.value)<0)f.showIf.value=c.options[0];
+    }
+  });
+}
+function visible(f,v){
+  if(!f.showIf)return true;
+  const c=T.fields.find(x=>x.id===f.showIf.field);
+  if(!c||!visible(c,v))return false;
+  const cv=v[c.id];
+  return c.type==='checkbox'?((cv===true)===(f.showIf.value==='true')):String(cv==null?'':cv)===f.showIf.value;
+}
+function validate(v){
+  const e={};
+  T.fields.forEach(f=>{
+    if(!visible(f,v))return;
+    const x=v[f.id];
+    if(f.required&&(f.type==='checkbox'?x!==true:String(x==null?'':x).trim()===''))e[f.id]='This field is required.';
+    else if(f.type==='email'&&x&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x))e[f.id]='Enter a valid email address.';
+  });
+  return e;
+}
+const fill=(s,v)=>String(s).replace(/\{(\w+)\}/g,(m,k)=>{const x=v[k];return x==null||x===false?'':(x===true?'Yes':x)});
+function payload(v){
+  const body={};
+  T.sfStatic.forEach(s=>{if(s.k)body[s.k]=s.v});
+  const skipped=[];
+  T.fields.forEach(f=>{
+    if(!visible(f,v))return;
+    const x=v[f.id];
+    if(!f.sf){if(x!==''&&x!==false&&x!=null)skipped.push(f.label);return}
+    if(f.type==='checkbox')body[f.sf]=x===true;
+    else if(x!==''&&x!=null)body[f.sf]=f.type==='number'?Number(x):x;
+  });
+  return {skipped:skipped,json:{object:T.sfObject,method:'POST',endpoint:'/services/data/v62.0/sobjects/'+T.sfObject,body:body}};
+}
+function runTests(){
+  const r=[];const add=(name,status,detail)=>r.push({name:name,status:status,detail:detail});
+  const ids=T.fields.map(f=>f.id);
+  add('Every field has a label and a unique key',T.fields.every(f=>f.label.trim())&&new Set(ids).size===ids.length?'pass':'fail',T.fields.length+' fields checked.');
+  const cond=T.fields.filter(f=>f.showIf);
+  let condOk=true;
+  cond.forEach(f=>{
+    const c=T.fields.find(x=>x.id===f.showIf.field);
+    const on={};on[c.id]=c.type==='checkbox'?f.showIf.value==='true':f.showIf.value;
+    const off={};off[c.id]=c.type==='checkbox'?f.showIf.value!=='true':'__none__';
+    if(!c.showIf){if(!visible(f,on)||visible(f,off))condOk=false}
+  });
+  add('Conditional fields show and hide',condOk?'pass':'fail',cond.length+' conditions exercised.');
+  const e=validate(Object.fromEntries(T.fields.map(f=>[f.id,f.type==='checkbox'?false:''])));
+  const hiddenBlocked=T.fields.filter(f=>f.showIf&&!visible(f,{})&&e[f.id]);
+  add('Hidden required fields do not block submission',hiddenBlocked.length?'fail':'pass','Hidden fields are skipped by validation and left out of the payload.');
+  const unm=T.fields.filter(f=>!f.sf.trim());
+  add('Every field maps to Salesforce',unm.length?'warn':'pass',unm.length?unm.map(f=>f.label).join(', ')+' will not be sent.':'All fields have a Salesforce field.');
+  const need=T.sfObject==='Lead'?['LastName','Company']:['LastName'];
+  const miss=need.filter(n=>!T.fields.some(f=>f.sf===n));
+  add('Salesforce required fields are mapped',miss.length?'fail':'pass',miss.length?'Missing '+miss.join(', ')+' for '+T.sfObject+'.':T.sfObject+' needs '+need.join(' and ')+'.');
+  const badMail=T.emails.filter(m=>{const t=m.to.trim();const tok=t.match(/^\{(\w+)\}$/);return tok?!T.fields.some(f=>f.id===tok[1]&&f.type==='email'):!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(t)});
+  add('Email recipients are valid',badMail.length?'fail':'pass',badMail.length?badMail.map(m=>m.name).join(', ')+' has no valid recipient.':T.emails.length+' handlers checked.');
+  const open=T.questions.filter(q=>!q.a.trim()).length;
+  add('Open questions answered',open?'warn':'pass',open?open+' still open. The form was built with the current assumptions.':'All answered.');
+  return r;
+}
+
+/* ---------- Screens ---------- */
+function renderSteps(){
+  const defs=[['brief','Paste the brief',true],['template','Check the template',!!T],['form','Your form',built]];
+  document.getElementById('steps').innerHTML=defs.map((d,i)=>{
+    const done=(d[0]==='brief'&&!!T)||(d[0]==='template'&&built);
+    return `<button class="step ${step===d[0]?'on':''} ${done&&step!==d[0]?'done':''}" data-go="${d[0]}" ${d[2]?'':'disabled'}><i>${done&&step!==d[0]?'✓':i+1}</i>${d[1]}</button>`}).join('');
+}
+function renderBrief(){
+  app.innerHTML=`<h1>Paste the brief</h1>
+  <p class="lead">Paste an email, brief or instructions. The agent turns it into a form template you can check and edit, builds a real webform on the sandbox, tests it and gives you the config to release.</p>
+  <div class="card">
+    <label for="brief">Email, brief or instructions
+      <textarea id="brief" rows="12" placeholder="Paste the request here. For example: We need a sign-up form that asks for name, email and phone. Send the team an email and create a Lead in Salesforce.">${esc(brief)}</textarea></label>
+    <div class="bar"><button class="btn primary" data-act="generate" ${busy?'disabled':''}>${busy?'Reading the brief…':'Create template'}</button>
+      <button class="btn" data-act="clear">Clear</button>
+      <span class="hint grow">Nothing is built yet. You review the template first.</span></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <header><h2>Or try an example</h2></header>
+    <div class="chips">${EX.map((x,i)=>`<button class="ex" data-act="example" data-i="${i}"><b>${esc(x.title)}</b><span>${esc(x.blurb)}</span></button>`).join('')}</div>
+  </div>`;
+}
+function fieldRow(f,i){
+  const prior=T.fields.slice(0,i).filter(c=>c.type==='checkbox'||HAS_OPTS(c.type));
+  const c=f.showIf&&T.fields.find(x=>x.id===f.showIf.field);
+  let val='<label>Equals<input disabled placeholder="Choose a field first"></label>';
+  if(c&&HAS_OPTS(c.type))val=`<label>Equals<select data-svalue="${i}">${c.options.map(o=>`<option ${o===f.showIf.value?'selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
+  else if(c)val=`<label>Equals<select data-svalue="${i}"><option value="true" ${f.showIf.value==='true'?'selected':''}>is ticked</option><option value="false" ${f.showIf.value==='false'?'selected':''}>is not ticked</option></select></label>`;
+  return `<div class="frow">
+    <div class="frow-head"><span class="key">${esc(f.id)}</span>
+      <span class="bar"><button class="btn sm" data-act="up" data-i="${i}" aria-label="Move up">↑</button><button class="btn sm" data-act="down" data-i="${i}" aria-label="Move down">↓</button><button class="btn sm danger" data-act="del" data-i="${i}">Remove</button></span></div>
+    <div class="grid3">
+      <label>Label<input data-bind="fields.${i}.label" value="${esc(f.label)}"></label>
+      <label>Type<select data-bind="fields.${i}.type" data-rerender="1">${Object.keys(TYPES).map(k=>`<option value="${k}" ${k===f.type?'selected':''}>${TYPES[k]}</option>`).join('')}</select></label>
+      <label class="chk"><input type="checkbox" data-bind="fields.${i}.required" ${f.required?'checked':''}>Required</label>
+    </div>
+    ${HAS_OPTS(f.type)?`<label>Options, comma separated<input data-bind="fields.${i}.options" data-list="1" data-rerender="1" value="${esc(f.options.join(', '))}"></label>`:''}
+    <div class="grid3b">
+      <label>Show when<select data-sfield="${i}"><option value="">Always shown</option>${prior.map(p=>`<option value="${esc(p.id)}" ${f.showIf&&f.showIf.field===p.id?'selected':''}>${esc(p.label)}</option>`).join('')}</select></label>
+      ${val}
+      <label>Salesforce field<input class="mono" data-bind="fields.${i}.sf" value="${esc(f.sf)}" placeholder="not sent"></label>
+    </div></div>`;
+}
+function renderTemplate(){
+  const open=T.questions.filter(q=>!q.a.trim()).length;
+  app.innerHTML=`<h1>Check the template</h1>
+  <p class="lead">This is what will be built. Edit anything: fields, wording, conditions, emails, Salesforce mapping. Check the open questions at the end.</p>
+  <div style="display:flex;flex-direction:column;gap:16px">
+  <section class="card"><header><h2>Form</h2><span class="key">${esc(T.id)}</span></header>
+    <div class="two"><label>Title<input data-bind="title" value="${esc(T.title)}"></label>
+    <label>Introduction<input data-bind="description" value="${esc(T.description)}"></label></div></section>
+  <section class="card"><header><h2>Fields and conditions</h2><span class="hint">${T.fields.length} fields, ${T.fields.filter(f=>f.showIf).length} conditional</span></header>
+    ${T.fields.map(fieldRow).join('')}
+    <div><button class="btn" data-act="add">Add a field</button></div></section>
+  <section class="card"><header><h2>Wording after submit</h2></header>
+    <label>Confirmation message<textarea rows="2" data-bind="confirmation">${esc(T.confirmation)}</textarea></label>
+    <p class="hint">Use {field_key} to insert an answer, for example {first_name}.</p></section>
+  <section class="card"><header><h2>Emails</h2></header>
+    ${T.emails.map((m,i)=>`<div class="mail"><div class="two"><label>Handler name<input data-bind="emails.${i}.name" value="${esc(m.name)}"></label><label>To<input data-bind="emails.${i}.to" value="${esc(m.to)}"></label></div>
+      <label>Subject<input data-bind="emails.${i}.subject" value="${esc(m.subject)}"></label>
+      <label>Body<textarea rows="4" data-bind="emails.${i}.body">${esc(m.body)}</textarea></label></div>`).join('')}</section>
+  <section class="card"><header><h2>Salesforce mapping</h2></header>
+    <div class="two"><label>Create a<select data-bind="sfObject"><option ${T.sfObject==='Lead'?'selected':''}>Lead</option><option ${T.sfObject==='Contact'?'selected':''}>Contact</option><option ${T.sfObject==='Case'?'selected':''}>Case</option></select></label>
+    <p class="hint" style="align-self:end">Per-field mapping is set on each field above.</p></div>
+    <div><b style="font-size:13px">Fixed values sent with every submission</b>
+    ${T.sfStatic.map((s,i)=>`<div class="two" style="margin-top:8px"><input class="mono" data-bind="sfStatic.${i}.k" value="${esc(s.k)}" aria-label="Salesforce field"><span class="bar"><input class="mono" data-bind="sfStatic.${i}.v" value="${esc(s.v)}" aria-label="Value"><button class="btn sm danger" data-act="delsf" data-i="${i}">Remove</button></span></div>`).join('')}
+    <div style="margin-top:8px"><button class="btn sm" data-act="addsf">Add a fixed value</button></div></div></section>
+  <section class="card"><header><h2>Open questions</h2><span class="tag ${open?'open':'ok'}" id="qcount">${open?open+' open':'All answered'}</span></header>
+    <p class="hint">Things the brief did not settle. Answer here, or build now and decide later.</p>
+    <div>${T.questions.map((q,i)=>`<div class="q"><p>${esc(q.q)}</p><input data-bind="questions.${i}.a" data-q="1" value="${esc(q.a)}" placeholder="Your answer" aria-label="Answer"></div>`).join('')}</div></section>
+  </div>
+  <div class="sticky bar"><button class="btn primary" data-act="build">Build and test the form</button><button class="btn" data-act="back">Back to brief</button>
+    <span class="hint grow">Builds a webform on the sandbox, runs checks, then opens it for you. The build is simulated in this prototype.</span></div>`;
+}
+function renderBuilding(){
+  app.innerHTML=`<h1>Building on the sandbox</h1><p class="lead">The agent is creating the webform through the development MCP server.</p>
+  <div class="card"><div class="build">${building.steps.map((s,i)=>`<div class="${i<building.done?'d':''}">${esc(s)}</div>`).join('')}</div></div>`;
+}
+function tokenize(s){return String(s).replace(/\{(\w+)\}/g,'[webform_submission:values:$1]')}
+function blk(s,ind){return String(s).split('\n').map(l=>ind+l).join('\n')}
+const ys=s=>"'"+String(s).replace(/'/g,"''")+"'";
+function toYaml(){
+  let y='langcode: en\nstatus: open\ndependencies: {  }\nid: '+T.id+'\ntitle: '+ys(T.title)+'\ndescription: '+ys(T.description)+'\ncategory: \'\'\nelements: |\n';
+  T.fields.forEach(f=>{
+    const I='  ';
+    y+=I+f.id+':\n'+I+"  '#type': "+f.type+'\n'+I+"  '#title': "+ys(f.label)+'\n';
+    if(f.required)y+=I+"  '#required': true\n";
+    if(HAS_OPTS(f.type)){y+=I+"  '#options':\n";f.options.forEach(o=>{y+=I+'    '+ys(o)+': '+ys(o)+'\n'})}
+    if(f.showIf){
+      const c=T.fields.find(x=>x.id===f.showIf.field);
+      y+=I+"  '#states':\n"+I+'    visible:\n'+I+'      \':input[name="'+f.showIf.field+'"]\':\n';
+      y+=c.type==='checkbox'?I+'        checked: '+(f.showIf.value==='true'?'true':'false')+'\n':I+'        value: '+ys(f.showIf.value)+'\n';
+    }
+  });
+  y+='settings:\n  confirmation_type: message\n  confirmation_message: '+ys(tokenize(T.confirmation))+'\nhandlers:\n';
+  T.emails.forEach(m=>{
+    y+='  '+m.id+':\n    id: email\n    label: '+ys(m.name)+'\n    handler_id: '+m.id+'\n    status: true\n    settings:\n      to_mail: '+ys(tokenize(m.to))+'\n      subject: '+ys(tokenize(m.subject))+'\n      body: |\n'+blk(tokenize(m.body),'        ')+'\n';
+  });
+  let cd='';
+  T.sfStatic.forEach(s=>{if(s.k)cd+=s.k+': '+ys(s.v)+'\n'});
+  T.fields.forEach(f=>{if(f.sf)cd+=f.sf+': '+ys('[webform_submission:values:'+f.id+']')+'\n'});
+  y+='  salesforce:\n    id: remote_post\n    label: '+ys('Salesforce '+T.sfObject)+'\n    handler_id: salesforce\n    status: true\n    settings:\n      method: POST\n      type: json\n      completed_url: '+ys('https://example.my.salesforce.com/services/data/v62.0/sobjects/'+T.sfObject)+'\n      custom_data: |\n'+blk(cd.trimEnd(),'        ')+'\n';
+  return y;
+}
+function sampleVals(){
+  const today=new Date().toISOString().slice(0,10);
+  const byKey={first_name:'Asha',last_name:'Verma',email:'asha.test@example.com',phone:'+91 98765 00000'};
+  T.fields.forEach(f=>{
+    let x;
+    if(f.type==='checkbox')x=f.id==='under_18'?false:true;
+    else if(byKey[f.id])x=byKey[f.id];
+    else if(HAS_OPTS(f.type))x=f.options[0];
+    else if(f.type==='email')x='test.contact@example.com';
+    else if(f.type==='tel')x='+91 98765 00001';
+    else if(f.type==='number')x='10';
+    else if(f.type==='date')x=today;
+    else if(f.type==='textarea')x='Test message from the sandbox.';
+    else x='Sample '+f.label.toLowerCase();
+    vals[f.id]=x;
+  });
+}
+function resetVals(){vals={};T.fields.forEach(f=>{vals[f.id]=f.type==='checkbox'?false:''});errs={}}
+function liveField(f){
+  const v=vals[f.id],id='lf-'+f.id,req=f.required?' <span class="req" aria-hidden="true">*</span>':'';
+  let ctl='';
+  if(f.type==='textarea')ctl=`<textarea id="${id}" name="${f.id}" rows="3">${esc(v)}</textarea>`;
+  else if(f.type==='select')ctl=`<select id="${id}" name="${f.id}"><option value="">- Select -</option>${f.options.map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
+  else if(f.type==='radios')ctl=`<fieldset>${f.options.map((o,k)=>`<label><input type="radio" name="${f.id}" id="${id}-${k}" value="${esc(o)}" ${o===v?'checked':''}>${esc(o)}</label>`).join('')}</fieldset>`;
+  else if(f.type==='checkbox')return `<div class="fld cb" data-fid="${f.id}"><label><input type="checkbox" id="${id}" name="${f.id}" ${v===true?'checked':''}><span>${esc(f.label)}${req}</span></label><span class="err" data-err="${f.id}">${esc(errs[f.id]||'')}</span></div>`;
+  else{const t=({email:'email',tel:'tel',number:'number',date:'date'})[f.type]||'text';ctl=`<input type="${t}" id="${id}" name="${f.id}" value="${esc(v)}">`}
+  return `<div class="fld ${f.showIf?'cond':''}" data-fid="${f.id}"><label class="lab" for="${f.type==='radios'?id+'-0':id}" style="color:var(--fg);font-size:14px">${esc(f.label)}${req}</label>${ctl}<span class="err" data-err="${f.id}">${esc(errs[f.id]||'')}</span></div>`;
+}
+function renderForm(){
+  const t=lastSub?'':'';
+  app.innerHTML=`<h1>Your form</h1>
+  <p class="lead">The live form on the sandbox. Try the conditional answers, submit with made-up details, then open the Salesforce payload to see what would be sent.</p>
+  <div class="cols">
+    <section class="card"><header><h2>${esc(T.title)}</h2><span class="hint mono">sandbox/form/${esc(T.id)}</span></header>
+      <div id="livebox"></div>
+      <div class="bar" style="border-top:1px solid var(--line);padding-top:12px"><button class="btn" data-act="edit">Back to template</button><span class="hint">Edits there rebuild this form.</span></div></section>
+    <section class="card"><div class="tabs" role="tablist">${[['payload','Salesforce payload'],['emails','Emails'],['tests','Tests'],['config','Config to release']].map(x=>`<button class="tab ${tab===x[0]?'on':''}" data-act="tab" data-t="${x[0]}" role="tab">${x[1]}</button>`).join('')}</div>
+      <div id="panel"></div></section>
+  </div>`;
+  renderLive();renderPanel();
+}
+function renderLive(){
+  const box=document.getElementById('livebox');
+  if(lastSub){
+    box.innerHTML=`<div class="ok-box"><b>Submitted</b><span>${esc(fill(T.confirmation,lastSub.values))}</span><div><button class="btn" data-act="again">Submit another response</button></div></div>`;
+    return;
+  }
+  box.innerHTML=`<form class="live" novalidate id="liveform">${T.description?`<p class="hint" style="font-size:14px">${esc(T.description)}</p>`:''}${T.fields.map(liveField).join('')}
+    <div class="bar"><button class="btn primary" type="submit">Submit</button><button class="btn" type="button" data-act="fill">Fill with made-up details</button><button class="btn" type="button" data-act="reset">Clear</button></div></form>`;
+  applyConditions();
+}
+function applyConditions(){
+  document.querySelectorAll('#liveform [data-fid]').forEach(el=>{
+    const f=T.fields.find(x=>x.id===el.dataset.fid);el.hidden=!visible(f,vals);
+  });
+}
+function renderPanel(){
+  const p=document.getElementById('panel');if(!p)return;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
+  if(tab==='payload'){
+    if(!lastSub){p.innerHTML='<p class="hint">Submit the form to see the request that would go to Salesforce. Use "Fill with made-up details" for a quick run.</p>';return}
+    const pl=payload(lastSub.values);
+    p.innerHTML=`<div style="display:flex;flex-direction:column;gap:10px"><div class="hint">Sandbox only. Nothing was sent to Salesforce.</div><pre>${esc(JSON.stringify(pl.json,null,2))}</pre>${pl.skipped.length?`<div class="note">Not sent, no Salesforce field mapped: ${esc(pl.skipped.join(', '))}.</div>`:''}</div>`;
+  }else if(tab==='emails'){
+    if(!lastSub){p.innerHTML='<p class="hint">Submit the form to see the emails it would send.</p>';return}
+    p.innerHTML=`<div style="display:flex;flex-direction:column;gap:10px">${T.emails.map(m=>`<div class="mailview"><div><b>${esc(m.name)}</b></div><div class="hint">To: ${esc(fill(m.to,lastSub.values))}</div><div class="hint">Subject: ${esc(fill(m.subject,lastSub.values))}</div><pre>${esc(fill(m.body,lastSub.values))}</pre></div>`).join('')}</div>`;
+  }else if(tab==='tests'){
+    p.innerHTML=tests.map(t=>`<div class="testrow"><span class="tag ${t.status}">${t.status}</span><p>${esc(t.name)}<small>${esc(t.detail)}</small></p></div>`).join('');
+  }else{
+    p.innerHTML=`<div style="display:flex;flex-direction:column;gap:10px"><div class="bar"><span class="hint grow">webform.webform.${esc(T.id)}.yml</span><button class="btn sm" data-act="copy">Copy</button></div><pre id="yaml">${esc(toYaml())}</pre><div class="note">The Salesforce URL is a placeholder. Set the real endpoint and credentials per environment before importing.</div></div>`;
+  }
+}
+
+/* ---------- Actions ---------- */
+function render(){
+  renderSteps();
+  if(step==='template'&&T)renderTemplate();
+  else if(step==='form'&&built)renderForm();
+  else if(step==='building')renderBuilding();
+  else{step='brief';renderBrief()}
+}
+function go(s){
+  if(s==='template'&&!T)s='brief';
+  if(s==='form'&&!built)s=T?'template':'brief';
+  step=s;try{history.replaceState(null,'','#'+s)}catch(e){}
+  render();window.scrollTo(0,0);
+}
+function setPath(o,path,v){const p=path.split('.');let c=o;for(let i=0;i<p.length-1;i++)c=c[p[i]];c[p[p.length-1]]=v}
+function readVal(el){
+  if(el.type==='checkbox')return el.checked;
+  if(el.dataset.list)return el.value.split(',').map(s=>s.trim()).filter(Boolean);
+  return el.value;
+}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+async function build(){
+  normalize();
+  const nc=T.fields.filter(f=>f.showIf).length;
+  building={steps:['Connecting to the development MCP server','Creating webform '+T.id+' on the sandbox','Adding '+T.fields.length+' elements','Applying '+nc+' conditional '+(nc===1?'rule':'rules'),'Adding '+T.emails.length+' email handlers','Adding the Salesforce handler for '+T.sfObject,'Running tests against the live form'],done:0};
+  step='building';render();
+  for(let i=0;i<building.steps.length;i++){await sleep(520);building.done=i+1;renderBuilding()}
+  await sleep(300);
+  tests=runTests();built=true;lastSub=null;resetVals();tab='payload';building=null;go('form');
+}
+
+app.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.id==='brief'){brief=t.value;return}
+  if(t.dataset.bind&&T&&!t.dataset.rerender){
+    setPath(T,t.dataset.bind,readVal(t));
+    if(t.dataset.q){const n=T.questions.filter(q=>!q.a.trim()).length;const c=document.getElementById('qcount');if(c){c.textContent=n?n+' open':'All answered';c.className='tag '+(n?'open':'ok')}}
+  }
+  if(t.closest&&t.closest('#liveform')&&t.name){vals[t.name]=t.type==='checkbox'?t.checked:t.value;if(t.type!=='checkbox'&&t.type!=='radio'){applyConditions()}}
+});
+app.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.closest&&t.closest('#liveform')&&t.name){vals[t.name]=t.type==='checkbox'?t.checked:t.value;applyConditions();return}
+  if(!T)return;
+  if(t.dataset.sfield!==undefined){
+    const f=T.fields[+t.dataset.sfield];
+    if(!t.value)f.showIf=null;
+    else{const c=T.fields.find(x=>x.id===t.value);f.showIf={field:c.id,value:c.type==='checkbox'?'true':c.options[0]}}
+    renderTemplate();return;
+  }
+  if(t.dataset.svalue!==undefined){T.fields[+t.dataset.svalue].showIf.value=t.value;return}
+  if(t.dataset.bind){setPath(T,t.dataset.bind,readVal(t));if(t.dataset.rerender){normalize();renderTemplate()}}
+});
+app.addEventListener('submit',e=>{
+  if(e.target.id!=='liveform')return;
+  e.preventDefault();
+  errs=validate(vals);
+  document.querySelectorAll('[data-err]').forEach(s=>{s.textContent=errs[s.dataset.err]||''});
+  if(Object.keys(errs).length){const k=Object.keys(errs)[0];const el=document.querySelector('[name="'+k+'"]');if(el&&el.focus)el.focus();return}
+  lastSub={values:Object.assign({},vals)};tab='payload';renderLive();renderPanel();
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
+});
+document.addEventListener('click',e=>{
+  const g=e.target.closest('[data-go]');
+  if(g){go(g.dataset.go);return}
+  const b=e.target.closest('[data-act]');
+  if(!b)return;
+  const a=b.dataset.act,i=+b.dataset.i;
+  if(a==='example'){brief=EX[i].brief;renderBrief()}
+  else if(a==='clear'){brief='';renderBrief()}
+  else if(a==='generate'){
+    if(!brief.trim()){const t=document.getElementById('brief');if(t)t.focus();return}
+    busy=true;renderBrief();
+    setTimeout(()=>{
+      const m=EX.find(x=>x.brief===brief);
+      T=m?m.tpl():generic(brief);built=false;lastSub=null;busy=false;normalize();go('template');
+    },900);
+  }
+  else if(a==='back')go('brief');
+  else if(a==='edit')go('template');
+  else if(a==='add'){
+    let n=T.fields.length+1;while(T.fields.some(f=>f.id==='field_'+n))n++;
+    T.fields.push(F('field_'+n,'New field','textfield'));renderTemplate();
+  }
+  else if(a==='del'){T.fields.splice(i,1);normalize();renderTemplate()}
+  else if(a==='up'&&i>0){const f=T.fields.splice(i,1)[0];T.fields.splice(i-1,0,f);normalize();renderTemplate()}
+  else if(a==='down'&&i<T.fields.length-1){const f=T.fields.splice(i,1)[0];T.fields.splice(i+1,0,f);normalize();renderTemplate()}
+  else if(a==='addsf'){T.sfStatic.push({k:'',v:''});renderTemplate()}
+  else if(a==='delsf'){T.sfStatic.splice(i,1);renderTemplate()}
+  else if(a==='build')build();
+  else if(a==='tab'){tab=b.dataset.t;renderPanel()}
+  else if(a==='fill'){sampleVals();errs={};renderLive()}
+  else if(a==='reset'){resetVals();renderLive()}
+  else if(a==='again'){lastSub=null;resetVals();renderLive();renderPanel()}
+  else if(a==='copy'){
+    const txt=toYaml();
+    const done=()=>{b.textContent='Copied';setTimeout(()=>{b.textContent='Copy'},1500)};
+    const sel=()=>{const r=document.createRange();r.selectNodeContents(document.getElementById('yaml'));const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Selected, press copy'};
+    try{navigator.clipboard.writeText(txt).then(done,sel)}catch(err){sel()}
+  }
+});
+window.addEventListener('hashchange',()=>{const s=location.hash.slice(1);if(['brief','template','form'].indexOf(s)>=0&&s!==step&&step!=='building')go(s)});
+render();
+})();
+</script>
+
+</body></html>
